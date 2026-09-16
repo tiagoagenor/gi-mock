@@ -4,6 +4,7 @@ import { rulesMatch, type MatchContext } from "@/server/rules-engine";
 import { sandboxRunner, type SandboxCtxData, type SandboxLib } from "@/server/sandbox/runner";
 import { getEnabledLibs } from "@/server/lib-registry";
 import { getVars } from "@/server/var-registry";
+import { getGlobalHeaders } from "@/server/settings-registry";
 import { logRequest } from "@/server/log-service";
 
 function sleep(ms: number) {
@@ -265,7 +266,9 @@ export async function handleMock(req: Request): Promise<Response> {
   if (response.latencyMs > 0) await sleep(Math.min(response.latencyMs, 60000));
 
   let status = response.statusCode;
+  const globalHeaders = await getGlobalHeaders();
   const headers: Record<string, string> = {
+    ...globalHeaders,
     ...(response.headers as Record<string, string>),
   };
   let bodyOut: string | null = null;

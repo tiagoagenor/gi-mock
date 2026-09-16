@@ -15,6 +15,7 @@ import {
   Shield,
   Braces,
   BookOpen,
+  AlignJustify,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -33,9 +34,10 @@ import { api } from "@/lib/client/api";
 
 const NAV = [
   { href: "/painel/mocks", label: "Mocks", icon: Network, adminOnly: false },
+  { href: "/painel/headers", label: "Headers", icon: AlignJustify, adminOnly: false },
+  { href: "/painel/logs", label: "Logs", icon: ScrollText, adminOnly: false },
   { href: "/painel/middlewares", label: "Middlewares", icon: Shield, adminOnly: false },
   { href: "/painel/variables", label: "Variáveis", icon: Braces, adminOnly: false },
-  { href: "/painel/logs", label: "Logs", icon: ScrollText, adminOnly: false },
   { href: "/painel/keys", label: "API Keys", icon: KeyRound, adminOnly: false },
   { href: "/painel/libs", label: "Libs", icon: Package, adminOnly: false },
   { href: "/painel/users", label: "Usuários", icon: Users, adminOnly: true },

@@ -91,7 +91,7 @@ export function MocksWorkspace({ initialHash }: { initialHash?: string }) {
       <div className="flex w-[300px] shrink-0 flex-col border-r border-border bg-surface">
         <div className="flex h-9 items-center justify-between border-b border-border pl-3 pr-2">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Mocks
+            Rotas
           </span>
           <div className="flex items-center gap-0.5">
             <Button
@@ -122,23 +122,23 @@ export function MocksWorkspace({ initialHash }: { initialHash?: string }) {
           {loading ? (
             <Loading className="h-32" />
           ) : (
-          <MockTree
-            folders={folders}
-            mocks={mocks}
-            selectedMockId={selectedMockId}
-            onSelectMock={setSelectedMockId}
-            onMoveMock={moveMock}
-            onDeleteFolder={(id) => setDeleteFolderId(id)}
-            onEditFolder={(folder) => setEditFolder(folder)}
-            onNewSubfolder={(parentId) => {
-              setDialogFolderCtx(parentId);
-              setNewFolderOpen(true);
-            }}
-            onNewMockInFolder={(folderId) => {
-              setDialogFolderCtx(folderId);
-              setNewMockOpen(true);
-            }}
-          />
+            <MockTree
+              folders={folders}
+              mocks={mocks}
+              selectedMockId={selectedMockId}
+              onSelectMock={setSelectedMockId}
+              onMoveMock={moveMock}
+              onDeleteFolder={(id) => setDeleteFolderId(id)}
+              onEditFolder={(folder) => setEditFolder(folder)}
+              onNewSubfolder={(parentId) => {
+                setDialogFolderCtx(parentId);
+                setNewFolderOpen(true);
+              }}
+              onNewMockInFolder={(folderId) => {
+                setDialogFolderCtx(folderId);
+                setNewMockOpen(true);
+              }}
+            />
           )}
         </ScrollArea>
       </div>
