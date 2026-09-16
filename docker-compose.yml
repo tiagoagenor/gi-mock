@@ -1,0 +1,22 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: gimock-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: gimock_root
+      MYSQL_DATABASE: gimock
+      MYSQL_USER: gimock
+      MYSQL_PASSWORD: gimock
+    ports:
+      - "3310:3306"
+    volumes:
+      - gimock-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ugimock", "-pgimock"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  gimock-mysql-data:
