@@ -105,6 +105,24 @@ curl -X POST http://localhost:3000/api/users -d '{"nome":"Ana"}' -H 'Content-Typ
         404 e aparecem esmaecidos na árvore.
       </P>
 
+      <H2 id="cors">CORS</H2>
+      <P>
+        O CORS já vem <b>sempre habilitado</b>. As requisições <Code>OPTIONS</Code> de preflight são
+        respondidas automaticamente e todas as respostas dos mocks recebem os headers de CORS —
+        então você consome os mocks de qualquer front no navegador sem configurar nada.
+      </P>
+      <Ul>
+        <Li>
+          <Code>Access-Control-Allow-Origin</Code> reflete a origem da requisição (ou <Code>*</Code>{" "}
+          quando não há origem), com <Code>Allow-Credentials: true</Code>.
+        </Li>
+        <Li>Todos os verbos e headers pedidos são liberados.</Li>
+        <Li>
+          Você ainda pode sobrescrever qualquer header de CORS via <b>Headers globais</b> ou nos
+          headers da resposta.
+        </Li>
+      </Ul>
+
       <H2 id="modos">Modos de resposta</H2>
       <P>
         No cabeçalho, o campo <b>Modo</b> define como a resposta é escolhida quando há várias:

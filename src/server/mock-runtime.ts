@@ -11,6 +11,27 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+// CORS sempre habilitado: reflete a origem/headers pedidos e libera todos os verbos.
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin");
+  const reqHeaders = req.headers.get("access-control-request-headers");
+  const base: Record<string, string> = {
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS",
+    "Access-Control-Allow-Headers": reqHeaders || "*",
+    "Access-Control-Expose-Headers": "*",
+    "Access-Control-Max-Age": "86400",
+  };
+  if (origin) {
+    // Com origem definida, refletimos a origem e liberamos credenciais.
+    base["Access-Control-Allow-Origin"] = origin;
+    base["Access-Control-Allow-Credentials"] = "true";
+    base["Vary"] = "Origin";
+  } else {
+    base["Access-Control-Allow-Origin"] = "*";
+  }
+  return base;
+}
+
 // Ruído de navegador que não deve poluir os logs.
 function skipLogging(path: string): boolean {
   return (
@@ -174,6 +195,11 @@ export async function handleMock(req: Request): Promise<Response> {
     req.headers.get("x-real-ip") ??
     null;
 
+  // Preflight de CORS: responde na hora, sem exigir um mock correspondente.
+  if (method === "OPTIONS" && req.headers.get("access-control-request-method")) {
+    return new Response(null, { status: 204, headers: corsHeaders(req) });
+  }
+
   const resolved = await routeIndex.resolve(method, pathname);
   const query = queryToObject(url.searchParams);
   const reqHeaders = headersToObject(req.headers);
@@ -181,11 +207,11 @@ export async function handleMock(req: Request): Promise<Response> {
 
   if (!resolved) {
     // Requisição que não casou com nenhum mock: NÃO registra no log.
-    return jsonResponse(404, {
-      error: "Mock não encontrado",
-      method,
-      path: pathname,
-    });
+    return jsonResponse(
+      404,
+      { error: "Mock não encontrado", method, path: pathname },
+      corsHeaders(req),
+    );
   }
 
   const { entry, params } = resolved;
@@ -223,7 +249,7 @@ export async function handleMock(req: Request): Promise<Response> {
     if (mw.blocked) {
       const blockedRes = new Response(mw.blocked.body, {
         status: mw.blocked.status,
-        headers: mw.blocked.headers,
+        headers: { ...corsHeaders(req), ...mw.blocked.headers },
       });
       if (!noLog)
         logRequest({
@@ -248,7 +274,11 @@ export async function handleMock(req: Request): Promise<Response> {
   const { response, matchedByRules } = selectResponse(entry, matchCtx);
 
   if (!response) {
-    const res = jsonResponse(501, { error: "Nenhuma response configurada para este mock" });
+    const res = jsonResponse(
+      501,
+      { error: "Nenhuma response configurada para este mock" },
+      corsHeaders(req),
+    );
     if (!noLog) logRequest({
       mockId: mock.id,
       method,
@@ -268,6 +298,7 @@ export async function handleMock(req: Request): Promise<Response> {
   let status = response.statusCode;
   const globalHeaders = await getGlobalHeaders();
   const headers: Record<string, string> = {
+    ...corsHeaders(req),
     ...globalHeaders,
     ...(response.headers as Record<string, string>),
   };
