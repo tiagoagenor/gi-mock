@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Copy, Plus, Trash2, Save, Loader2, Pin, PinOff, Shield } from "lucide-react";
+import { Copy, Plus, Trash2, Save, Loader2, Pin, PinOff, Shield, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import { ResponseEditor } from "@/components/panel/mocks/response-editor";
 import { HTTP_METHODS, type HttpMethod } from "@/lib/http";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/client/api";
+import { DEFAULT_TEST_CTX } from "@/lib/client/test-ctx";
 import type { MockDetail, MockResponse, ResponseMode, MiddlewareListItem } from "@/lib/types";
 
 export function MockEditor({
@@ -41,6 +42,8 @@ export function MockEditor({
   const [savingResp, setSavingResp] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [availableMw, setAvailableMw] = useState<MiddlewareListItem[]>([]);
+  // Estado "limpo" (última versão salva/carregada) para detectar edições não salvas.
+  const [pristine, setPristine] = useState<MockDetail | null>(null);
 
   const load = useCallback(async () => {
     const d = await api.get<MockDetail>(`/painel/api/mocks/${mockId}`);
@@ -48,8 +51,10 @@ export function MockEditor({
     d.responses = d.responses.map((r) => ({
       ...r,
       headers: (r.headers as Record<string, string>) ?? {},
+      testRequest: r.testRequest ?? DEFAULT_TEST_CTX,
     }));
     setDetail(d);
+    setPristine(JSON.parse(JSON.stringify(d)) as MockDetail);
     setSelectedRid((prev) => (prev && d.responses.some((r) => r.id === prev) ? prev : d.responses[0]?.id ?? null));
   }, [mockId]);
 
@@ -85,6 +90,33 @@ export function MockEditor({
 
   const selected = detail.responses.find((r) => r.id === selectedRid) ?? detail.responses[0];
 
+  // Detecção de alterações não salvas (dirty).
+  const metaSig = (d: MockDetail) =>
+    JSON.stringify([d.method, d.path, d.name ?? "", d.responseMode, d.isEnabled, d.forcedResponseId ?? ""]);
+  const respSig = (r: MockResponse) =>
+    JSON.stringify([
+      r.label ?? "",
+      r.statusCode,
+      r.headers,
+      r.bodyMode,
+      r.body ?? "",
+      r.code ?? "",
+      r.latencyMs,
+      r.rulesOperator,
+      r.isDefault,
+      r.rules,
+      r.testRequest ?? "",
+    ]);
+  const metaDirty = pristine ? metaSig(detail) !== metaSig(pristine) : false;
+  const dirtyRids = new Set<string>();
+  if (pristine) {
+    for (const r of detail.responses) {
+      const p = pristine.responses.find((x) => x.id === r.id);
+      if (!p || respSig(r) !== respSig(p)) dirtyRids.add(r.id);
+    }
+  }
+  const anyDirty = metaDirty || dirtyRids.size > 0;
+
   function patchMeta(patch: Partial<MockDetail>) {
     setDetail((d) => (d ? { ...d, ...patch } : d));
   }
@@ -94,18 +126,37 @@ export function MockEditor({
     );
   }
 
+  function metaPayload() {
+    const d = detail!;
+    return {
+      method: d.method,
+      path: d.path,
+      name: d.name,
+      responseMode: d.responseMode,
+      isEnabled: d.isEnabled,
+      forcedResponseId: d.forcedResponseId,
+    };
+  }
+  function responsePayload(r: MockResponse) {
+    return {
+      label: r.label,
+      statusCode: r.statusCode,
+      headers: r.headers,
+      bodyMode: r.bodyMode,
+      body: r.body,
+      code: r.code,
+      latencyMs: r.latencyMs,
+      rulesOperator: r.rulesOperator,
+      isDefault: r.isDefault,
+      testRequest: r.testRequest,
+      rules: r.rules.map((rule, i) => ({ ...rule, order: i })),
+    };
+  }
+
   async function saveMeta() {
-    if (!detail) return;
     setSavingMeta(true);
     try {
-      await api.patch(`/painel/api/mocks/${mockId}`, {
-        method: detail.method,
-        path: detail.path,
-        name: detail.name,
-        responseMode: detail.responseMode,
-        isEnabled: detail.isEnabled,
-        forcedResponseId: detail.forcedResponseId,
-      });
+      await api.patch(`/painel/api/mocks/${mockId}`, metaPayload());
       toast.success("Mock salvo");
       onMockChanged();
       await load();
@@ -120,23 +171,48 @@ export function MockEditor({
     if (!selected) return;
     setSavingResp(true);
     try {
-      await api.patch(`/painel/api/responses/${selected.id}`, {
-        label: selected.label,
-        statusCode: selected.statusCode,
-        headers: selected.headers,
-        bodyMode: selected.bodyMode,
-        body: selected.body,
-        code: selected.code,
-        latencyMs: selected.latencyMs,
-        rulesOperator: selected.rulesOperator,
-        isDefault: selected.isDefault,
-        rules: selected.rules.map((r, i) => ({ ...r, order: i })),
-      });
+      await api.patch(`/painel/api/responses/${selected.id}`, responsePayload(selected));
       toast.success("Resposta salva");
       onMockChanged();
       await load();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Erro ao salvar resposta");
+    } finally {
+      setSavingResp(false);
+    }
+  }
+
+  // Salva só o request de teste da resposta selecionada.
+  async function saveTestRequest() {
+    if (!selected) return;
+    setSavingResp(true);
+    try {
+      await api.patch(`/painel/api/responses/${selected.id}`, { testRequest: selected.testRequest });
+      toast.success("Request de teste salvo");
+      onMockChanged();
+      await load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Erro ao salvar");
+    } finally {
+      setSavingResp(false);
+    }
+  }
+
+  // Salva tudo: dados do mock + todas as respostas alteradas (incl. request de teste).
+  async function saveAll() {
+    setSavingResp(true);
+    try {
+      if (metaDirty) await api.patch(`/painel/api/mocks/${mockId}`, metaPayload());
+      for (const r of detail!.responses) {
+        if (dirtyRids.has(r.id)) {
+          await api.patch(`/painel/api/responses/${r.id}`, responsePayload(r));
+        }
+      }
+      toast.success("Tudo salvo");
+      onMockChanged();
+      await load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Erro ao salvar");
     } finally {
       setSavingResp(false);
     }
@@ -174,8 +250,9 @@ export function MockEditor({
     }
   }
 
+  const effPath = detail.effectivePath ?? detail.path;
   const callUrl =
-    typeof window !== "undefined" ? `${window.location.origin}${detail.path}` : detail.path;
+    typeof window !== "undefined" ? `${window.location.origin}${effPath}` : effPath;
 
   return (
     <div className="flex h-full flex-col">
@@ -210,7 +287,18 @@ export function MockEditor({
               Ativo
             </label>
           </div>
-          <Button size="sm" onClick={saveMeta} disabled={savingMeta}>
+          {anyDirty && (
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-warning/15 px-2 py-1 text-[12px] font-medium text-warning">
+              <span className="size-1.5 rounded-full bg-warning" />
+              Não salvo
+            </span>
+          )}
+          <Button
+            size="sm"
+            onClick={saveMeta}
+            disabled={savingMeta}
+            className={cn(metaDirty && "ring-2 ring-warning/50")}
+          >
             {savingMeta ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             Salvar
           </Button>
@@ -310,7 +398,17 @@ export function MockEditor({
             <Copy className="size-3.5" />
             {callUrl}
           </button>
-          <span className="font-mono text-[11px] text-muted-foreground">#{detail.hash}</span>
+          <button
+            onClick={() => {
+              const link = `${window.location.origin}/painel/mocks/${detail.hash}`;
+              navigator.clipboard.writeText(link);
+              toast.success("Link do mock copiado");
+            }}
+            className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground hover:text-foreground"
+            title="Copiar link direto deste mock"
+          >
+            <Link2 className="size-3" />#{detail.hash}
+          </button>
         </div>
       </div>
 
@@ -342,6 +440,12 @@ export function MockEditor({
                   <span className="min-w-0 flex-1 truncate text-[13px]">
                     {r.label || "sem rótulo"}
                   </span>
+                  {dirtyRids.has(r.id) && (
+                    <span
+                      className="size-1.5 shrink-0 rounded-full bg-warning"
+                      title="Alterações não salvas"
+                    />
+                  )}
                   {r.isDefault && (
                     <span className="rounded bg-secondary px-1 text-[10px] text-secondary-foreground">
                       def
@@ -378,8 +482,12 @@ export function MockEditor({
               onChange={(patch) => patchResponse(selected.id, patch)}
               onSave={saveResponse}
               onDelete={deleteResponse}
+              onSaveTest={saveTestRequest}
+              onSaveAll={saveAll}
+              method={detail.method}
               canDelete={detail.responses.length > 1}
               saving={savingResp}
+              dirty={dirtyRids.has(selected.id)}
             />
           )}
         </div>

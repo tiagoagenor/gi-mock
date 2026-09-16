@@ -38,6 +38,12 @@ export default function CodigoDoc() {
         <Li>Erros ou timeout resultam em 500 e ficam registrados nos logs.</Li>
       </Ul>
 
+      <Callout type="tip" title="status e headers são opcionais">
+        Se o código não retornar <Code>status</Code>, vale o status configurado na resposta (seletor
+        de Status). Se não retornar <Code>headers</Code>, valem os headers da aba <b>Headers</b>. Ou
+        seja, você pode retornar só o <Code>body</Code> e deixar o resto no mock.
+      </Callout>
+
       <H2 id="ctx">O objeto ctx</H2>
       <PropTable
         rows={[

@@ -241,7 +241,10 @@ export function MiddlewaresWorkspace() {
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     Request de teste (JSON)
                   </span>
-                  <div className="mt-1 h-[130px] border border-border">
+                  <div
+                    className="mt-1 resize-y overflow-hidden rounded border border-border"
+                    style={{ height: 170, minHeight: 90, maxHeight: 500 }}
+                  >
                     <MonacoEditor language="json" value={testCtx} onChange={setTestCtx} />
                   </div>
                 </div>

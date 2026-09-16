@@ -11,11 +11,10 @@ const ADMIN_USER = process.env.SEED_ADMIN_USER ?? "admin";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
 
 const SAMPLE_CODE = `// Handler dinâmico em JavaScript (ES Modules).
-// Recebe o contexto do request e devolve { status, headers, body }.
+// status e headers vêm da configuração da resposta (Status e aba Headers).
+// Retorne só o body — ou inclua status/headers aqui para sobrescrever.
 export default async function handler(ctx) {
   return {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
     body: {
       id: ctx.params.id ?? ctx.faker.string.uuid(),
       name: ctx.faker.person.fullName(),

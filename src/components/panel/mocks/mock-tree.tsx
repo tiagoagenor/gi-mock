@@ -9,6 +9,8 @@ import {
   Plus,
   Trash2,
   FolderPlus,
+  Pencil,
+  Shield,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -28,6 +30,7 @@ interface TreeProps {
   onSelectMock: (id: string) => void;
   onMoveMock: (mockId: string, folderId: string | null) => void;
   onDeleteFolder: (id: string) => void;
+  onEditFolder: (folder: Folder) => void;
   onNewSubfolder: (parentId: string) => void;
   onNewMockInFolder: (folderId: string | null) => void;
 }
@@ -109,8 +112,17 @@ export function MockTree(props: TreeProps) {
               <FolderIcon className="size-3.5 shrink-0 text-muted-foreground" />
             )}
             <span className="truncate text-[13px]">{folder.name}</span>
+            {folder.prefix && (
+              <span className="shrink-0 rounded bg-muted px-1 font-mono text-[10px] text-muted-foreground">
+                {folder.prefix}
+              </span>
+            )}
+            {folder.middlewareIds.length > 0 && (
+              <Shield className="size-3 shrink-0 text-primary" />
+            )}
           </button>
           <FolderMenu
+            onEdit={() => props.onEditFolder(folder)}
             onNewMock={() => props.onNewMockInFolder(folder.id)}
             onNewSubfolder={() => props.onNewSubfolder(folder.id)}
             onDelete={() => props.onDeleteFolder(folder.id)}
@@ -180,10 +192,12 @@ export function MockTree(props: TreeProps) {
 }
 
 function FolderMenu({
+  onEdit,
   onNewMock,
   onNewSubfolder,
   onDelete,
 }: {
+  onEdit: () => void;
   onNewMock: () => void;
   onNewSubfolder: () => void;
   onDelete: () => void;
@@ -200,7 +214,11 @@ function FolderMenu({
           <MoreVertical className="size-3.5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[180px]">
+      <DropdownMenuContent align="end" className="w-[190px]">
+        <DropdownMenuItem onClick={onEdit}>
+          <Pencil className="size-4" />
+          Editar (prefixo/mw)
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={onNewMock}>
           <Plus className="size-4" />
           Novo mock aqui

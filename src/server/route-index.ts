@@ -1,11 +1,16 @@
 import "server-only";
 import type { Mock, MockResponse, Rule } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { buildPrefixMap, effectivePath } from "@/server/folder-runtime";
 
 export type CompiledResponse = MockResponse & { rules: Rule[] };
 export interface BoundMiddleware {
   order: number;
   middleware: { id: string; name: string; code: string; isEnabled: boolean };
+}
+export interface EffectiveMiddleware {
+  name: string;
+  code: string;
 }
 export type MockWithResponses = Mock & {
   responses: CompiledResponse[];
@@ -15,6 +20,8 @@ export type MockWithResponses = Mock & {
 export interface MockEntry {
   mock: MockWithResponses;
   paramNames: string[];
+  effectivePath: string;
+  middlewares: EffectiveMiddleware[];
 }
 
 interface TemplateEntry extends MockEntry {
@@ -61,31 +68,76 @@ class RouteIndex {
   }
 
   private async build() {
-    const mocks = (await prisma.mock.findMany({
-      where: { isEnabled: true },
-      include: {
-        responses: {
-          orderBy: { order: "asc" },
-          include: { rules: { orderBy: { order: "asc" } } },
-        },
-        middlewares: {
-          where: { middleware: { isEnabled: true } },
-          orderBy: { order: "asc" },
-          include: {
-            middleware: { select: { id: true, name: true, code: true, isEnabled: true } },
+    const [mocks, folders] = await Promise.all([
+      prisma.mock.findMany({
+        where: { isEnabled: true },
+        include: {
+          responses: {
+            orderBy: { order: "asc" },
+            include: { rules: { orderBy: { order: "asc" } } },
+          },
+          middlewares: {
+            where: { middleware: { isEnabled: true } },
+            orderBy: { order: "asc" },
+            include: {
+              middleware: { select: { id: true, name: true, code: true, isEnabled: true } },
+            },
           },
         },
-      },
-    })) as MockWithResponses[];
+      }),
+      prisma.folder.findMany({
+        select: {
+          id: true,
+          parentId: true,
+          prefix: true,
+          middlewares: {
+            where: { middleware: { isEnabled: true } },
+            orderBy: { order: "asc" },
+            include: { middleware: { select: { name: true, code: true } } },
+          },
+        },
+      }),
+    ]);
+
+    const prefixMap = buildPrefixMap(folders);
+
+    // Middlewares próprios de cada pasta.
+    const folderOwnMw = new Map<string, EffectiveMiddleware[]>(
+      folders.map((f) => [f.id, f.middlewares.map((m) => ({ name: m.middleware.name, code: m.middleware.code }))]),
+    );
+    const folderParent = new Map<string, string | null>(folders.map((f) => [f.id, f.parentId]));
+    const mwMemo = new Map<string, EffectiveMiddleware[]>();
+    const accMw = (id: string | null): EffectiveMiddleware[] => {
+      if (!id) return [];
+      const cached = mwMemo.get(id);
+      if (cached) return cached;
+      mwMemo.set(id, []); // guarda contra ciclo
+      const chain = [...accMw(folderParent.get(id) ?? null), ...(folderOwnMw.get(id) ?? [])];
+      mwMemo.set(id, chain);
+      return chain;
+    };
 
     const byExact = new Map<string, MockEntry>();
     const byTemplate: TemplateEntry[] = [];
 
     for (const mock of mocks) {
-      const { regex, paramNames, isStatic } = compilePath(mock.path);
-      const entry: MockEntry = { mock, paramNames };
+      const effPath = effectivePath(prefixMap, mock.folderId, mock.path);
+      const { regex, paramNames, isStatic } = compilePath(effPath);
+      const middlewares: EffectiveMiddleware[] = [
+        ...accMw(mock.folderId),
+        ...(mock as MockWithResponses).middlewares.map((m) => ({
+          name: m.middleware.name,
+          code: m.middleware.code,
+        })),
+      ];
+      const entry: MockEntry = {
+        mock: mock as MockWithResponses,
+        paramNames,
+        effectivePath: effPath,
+        middlewares,
+      };
       if (isStatic) {
-        byExact.set(`${mock.method} ${mock.path}`, entry);
+        byExact.set(`${mock.method} ${effPath}`, entry);
       } else {
         byTemplate.push({ ...entry, method: mock.method, regex });
       }
@@ -96,7 +148,7 @@ class RouteIndex {
       if (a.paramNames.length !== b.paramNames.length) {
         return a.paramNames.length - b.paramNames.length;
       }
-      return b.mock.path.length - a.mock.path.length;
+      return b.effectivePath.length - a.effectivePath.length;
     });
 
     this.byExact = byExact;

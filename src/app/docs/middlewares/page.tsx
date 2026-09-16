@@ -53,11 +53,19 @@ export default function MiddlewaresDoc() {
 }`}
       />
 
-      <H2 id="vincular">Vinculando a uma rota</H2>
+      <H2 id="vincular">Vinculando</H2>
+      <H3>A um mock</H3>
       <P>
         No editor do mock, clique em <b>Middlewares</b> (no cabeçalho) e marque os que devem rodar.
         Eles executam <b>na ordem</b> em que foram adicionados; se algum bloquear, os seguintes e o
         mock não rodam.
+      </P>
+      <H3>A uma pasta inteira</H3>
+      <P>
+        No menu <Code>⋮</Code> da pasta → <b>Editar (prefixo/mw)</b>, selecione middlewares que
+        rodam para <b>todos</b> os mocks daquela pasta (e subpastas). A ordem completa é:
+        middlewares das pastas (raiz → folha) e depois os do próprio mock. Ótimo para proteger um
+        grupo de rotas com JWT de uma vez só.
       </P>
 
       <Callout type="tip" title="Reutilização">

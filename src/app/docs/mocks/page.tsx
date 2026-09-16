@@ -16,6 +16,20 @@ export default function MocksDoc() {
         resposta padrão <Code>200</Code>.
       </P>
 
+      <H3>Importar de cURL</H3>
+      <P>
+        No diálogo de novo mock, a aba <b>Importar cURL</b> permite colar um comando{" "}
+        <Code>curl</Code>; ele extrai o <b>método</b> e o <b>caminho</b> (a query é ignorada).
+        Clique em <b>Analisar e preencher</b>, revise e crie.
+      </P>
+      <CodeBlock
+        lang="bash"
+        code={`curl -X POST https://api.exemplo.com/users \\
+  -H 'Content-Type: application/json' \\
+  -d '{"nome":"Ana"}'
+# vira → POST /users`}
+      />
+
       <H3>Parâmetros de rota</H3>
       <P>
         Use <Code>:nome</Code> para capturar segmentos e <Code>*</Code> como curinga. Os valores
@@ -39,7 +53,28 @@ curl -X POST http://localhost:3000/api/users -d '{"nome":"Ana"}' -H 'Content-Typ
       <P>
         Organize mocks em pastas aninhadas (pasta dentro de pasta). Para <b>mover</b> um request,
         arraste-o para outra pasta — ou para a área raiz. Use o menu <Code>⋮</Code> da pasta para
-        criar subpastas, novos mocks ou excluir.
+        editar (prefixo/middlewares), criar subpastas, novos mocks ou excluir.
+      </P>
+
+      <H3>Prefixo da pasta</H3>
+      <P>
+        No menu <Code>⋮</Code> da pasta → <b>Editar (prefixo/mw)</b>, defina um <b>prefixo</b> (ex.:{" "}
+        <Code>/api/v1</Code>) que é aplicado a todas as rotas dos mocks de dentro. Um mock{" "}
+        <Code>/users</Code> numa pasta com prefixo <Code>/api/v1</Code> passa a responder em{" "}
+        <Code>/api/v1/users</Code>. Prefixos <b>acumulam</b> em subpastas (ex.: <Code>/api</Code> +{" "}
+        <Code>/v1</Code> → <Code>/api/v1</Code>).
+      </P>
+      <Callout type="note" title="URL efetiva">
+        A URL completa (com prefixo) aparece no cabeçalho do editor do mock. Na árvore, pastas com
+        prefixo mostram um selo (ex.: <Code>/api/v1</Code>).
+      </Callout>
+
+      <H3>Middlewares da pasta</H3>
+      <P>
+        Ainda em <b>Editar (prefixo/mw)</b>, selecione <b>middlewares</b> que rodam antes de{" "}
+        <b>todos</b> os mocks daquela pasta (e subpastas) — ideal para proteger um grupo inteiro de
+        rotas com JWT de uma vez. A ordem de execução é: middlewares das pastas (raiz → folha) e
+        depois os do próprio mock. Veja <Code>Middlewares</Code>.
       </P>
 
       <H2 id="regras-url">Regras de URL</H2>

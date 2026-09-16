@@ -16,10 +16,13 @@ export const testRunSchema = z.object({
       body: z.any().optional(),
     })
     .optional(),
+  // Config da resposta do mock (para o teste refletir o mesmo que o endpoint real).
+  defaultStatus: z.number().int().min(100).max(599).optional(),
+  defaultHeaders: z.record(z.string(), z.string()).optional(),
 });
 
 export async function runTest(raw: unknown) {
-  const { code, request } = testRunSchema.parse(raw);
+  const { code, request, defaultStatus, defaultHeaders } = testRunSchema.parse(raw);
   const [libs, vars] = await Promise.all([getEnabledLibs(), getVars()]);
   const ctxData: SandboxCtxData = {
     request: {
@@ -36,5 +39,12 @@ export async function runTest(raw: unknown) {
     state: {},
   };
   const result = await sandboxRunner.runScript(code, ctxData, libs);
+
+  // Aplica status/headers do mock quando o código os omite (igual ao runtime).
+  if (result.ok && result.result && defaultStatus !== undefined) {
+    if (typeof result.result.status !== "number") result.result.status = defaultStatus;
+    result.result.headers = { ...(defaultHeaders ?? {}), ...(result.result.headers ?? {}) };
+  }
+
   return result;
 }

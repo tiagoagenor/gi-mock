@@ -127,8 +127,8 @@ async function runMiddlewares(
   libs: SandboxLib[],
 ): Promise<MiddlewareOutcome> {
   let state: Record<string, unknown> = {};
-  for (const bm of entry.mock.middlewares) {
-    const res = await sandboxRunner.runScript(bm.middleware.code, { ...base, state }, libs);
+  for (const bm of entry.middlewares) {
+    const res = await sandboxRunner.runScript(bm.code, { ...base, state }, libs);
     if (!res.ok) {
       return {
         blocked: {
@@ -136,10 +136,10 @@ async function runMiddlewares(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             error: "Erro no middleware",
-            middleware: bm.middleware.name,
+            middleware: bm.name,
             detail: res.error?.message,
           }),
-          middleware: bm.middleware.name,
+          middleware: bm.name,
         },
         state,
       };
@@ -152,7 +152,7 @@ async function runMiddlewares(
         const headers = { "Content-Type": "application/json", ...(out.headers ?? {}) };
         const b = out.body;
         const body = b == null ? "" : typeof b === "string" ? b : JSON.stringify(b);
-        return { blocked: { status: out.status, headers, body, middleware: bm.middleware.name }, state };
+        return { blocked: { status: out.status, headers, body, middleware: bm.name }, state };
       }
       if (out.state && typeof out.state === "object") {
         state = { ...state, ...out.state };
@@ -179,22 +179,12 @@ export async function handleMock(req: Request): Promise<Response> {
   const { raw: rawBody, parsed: parsedBody } = await readBody(req);
 
   if (!resolved) {
-    const res = jsonResponse(404, {
+    // Requisição que não casou com nenhum mock: NÃO registra no log.
+    return jsonResponse(404, {
       error: "Mock não encontrado",
       method,
       path: pathname,
     });
-    if (!noLog) logRequest({
-      method,
-      path: pathname,
-      statusCode: 404,
-      ip,
-      requestHeaders: reqHeaders,
-      requestQuery: query,
-      requestBody: rawBody,
-      durationMs: Date.now() - started,
-    });
-    return res;
   }
 
   const { entry, params } = resolved;
@@ -226,7 +216,7 @@ export async function handleMock(req: Request): Promise<Response> {
   };
 
   let middlewareState: Record<string, unknown> = {};
-  if (mock.middlewares.length > 0) {
+  if (entry.middlewares.length > 0) {
     const mwLibs = await getEnabledLibs();
     const mw = await runMiddlewares(entry, baseCtxData, mwLibs);
     if (mw.blocked) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, Trash2, Search } from "lucide-react";
+import { RefreshCw, Trash2, Search, Loader2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,8 +48,20 @@ export function LogsView() {
   const [statusRange, setStatusRange] = useState(ALL);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [detail, setDetail] = useState<LogDetail | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
+
+  function buildParams(cursor?: string | null) {
+    const params = new URLSearchParams();
+    if (method !== ALL) params.set("method", method);
+    if (statusRange !== ALL) params.set("statusRange", statusRange);
+    if (search) params.set("search", search);
+    params.set("take", "50");
+    if (cursor) params.set("cursor", cursor);
+    return params;
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,13 +69,33 @@ export function LogsView() {
     if (method !== ALL) params.set("method", method);
     if (statusRange !== ALL) params.set("statusRange", statusRange);
     if (search) params.set("search", search);
+    params.set("take", "50");
     try {
-      const res = await api.get<{ items: LogItem[] }>(`/painel/api/logs?${params.toString()}`);
+      const res = await api.get<{ items: LogItem[]; nextCursor: string | null }>(
+        `/painel/api/logs?${params.toString()}`,
+      );
       setLogs(res.items);
+      setNextCursor(res.nextCursor);
     } finally {
       setLoading(false);
     }
   }, [method, statusRange, search]);
+
+  async function loadMore() {
+    if (!nextCursor) return;
+    setLoadingMore(true);
+    try {
+      const res = await api.get<{ items: LogItem[]; nextCursor: string | null }>(
+        `/painel/api/logs?${buildParams(nextCursor).toString()}`,
+      );
+      setLogs((prev) => [...prev, ...res.items]);
+      setNextCursor(res.nextCursor);
+    } catch {
+      toast.error("Falha ao carregar mais logs");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useEffect(() => {
     load().catch(() => toast.error("Falha ao carregar logs"));
@@ -171,6 +203,26 @@ export function LogsView() {
             )}
           </TableBody>
         </Table>
+
+        {logs.length > 0 && (
+          <div className="flex items-center justify-center gap-3 border-t border-border py-3">
+            <span className="text-[12px] text-muted-foreground">
+              {logs.length} {logs.length === 1 ? "registro" : "registros"}
+            </span>
+            {nextCursor ? (
+              <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
+                {loadingMore ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <ChevronDown className="size-4" />
+                )}
+                Carregar mais
+              </Button>
+            ) : (
+              <span className="text-[12px] text-muted-foreground">— fim —</span>
+            )}
+          </div>
+        )}
       </div>
 
       <Sheet open={detail !== null} onOpenChange={(o) => !o && setDetail(null)}>

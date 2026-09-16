@@ -28,9 +28,11 @@ export interface Folder {
   id: string;
   name: string;
   parentId: string | null;
+  prefix: string;
   order: number;
   path: string;
   depth: number;
+  middlewareIds: string[];
 }
 
 export interface MockListItem {
@@ -71,6 +73,7 @@ export interface MockResponse {
   rulesOperator: RuleOperatorMode;
   isDefault: boolean;
   order: number;
+  testRequest: string | null;
   rules: Rule[];
 }
 
@@ -93,6 +96,7 @@ export interface MockDetail {
   isEnabled: boolean;
   responses: MockResponse[];
   middlewares: BoundMiddleware[];
+  effectivePath?: string;
 }
 
 export interface VariableItem {

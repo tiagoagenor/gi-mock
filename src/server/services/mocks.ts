@@ -6,6 +6,7 @@ import { shortHash } from "@/lib/hash";
 import { isReservedPath, normalizePath } from "@/lib/reserved";
 import { businessError } from "@/lib/api";
 import { routeIndex } from "@/server/route-index";
+import { buildPrefixMap, effectivePath } from "@/server/folder-runtime";
 import { HTTP_METHODS } from "@/lib/http";
 
 const methodEnum = z.enum(HTTP_METHODS);
@@ -40,15 +41,33 @@ async function uniqueHash(): Promise<string> {
   throw new Error("Não foi possível gerar um hash único");
 }
 
-async function assertPathAvailable(method: string, path: string, ignoreId?: string) {
-  if (isReservedPath(path)) {
-    businessError(`O caminho "${path}" é reservado (ex.: /painel) e não pode ser usado.`);
-  }
-  const existing = await prisma.mock.findFirst({
-    where: { method: method as never, path, ...(ignoreId ? { NOT: { id: ignoreId } } : {}) },
+// Verifica o CAMINHO EFETIVO (prefixo da pasta + path) contra reservados e duplicidade.
+async function assertPathAvailable(
+  userId: string,
+  method: string,
+  path: string,
+  folderId: string | null,
+  ignoreId?: string,
+) {
+  const folders = await prisma.folder.findMany({
+    where: { userId },
+    select: { id: true, parentId: true, prefix: true },
   });
-  if (existing) {
-    businessError(`Já existe um mock ${method} ${path}. URLs não podem ser duplicadas.`);
+  const prefixMap = buildPrefixMap(folders);
+  const effTarget = effectivePath(prefixMap, folderId, path);
+
+  if (isReservedPath(effTarget)) {
+    businessError(`O caminho "${effTarget}" é reservado (ex.: /painel, /docs) e não pode ser usado.`);
+  }
+
+  const others = await prisma.mock.findMany({
+    where: { userId, method: method as never, ...(ignoreId ? { NOT: { id: ignoreId } } : {}) },
+    select: { path: true, folderId: true },
+  });
+  for (const o of others) {
+    if (effectivePath(prefixMap, o.folderId, o.path) === effTarget) {
+      businessError(`Já existe um mock ${method} ${effTarget}. URLs não podem ser duplicadas.`);
+    }
   }
 }
 
@@ -87,13 +106,19 @@ export async function getMock(userId: string, id: string) {
     },
   });
   if (!mock) businessError("Mock não encontrado");
-  return mock;
+
+  const folders = await prisma.folder.findMany({
+    where: { userId },
+    select: { id: true, parentId: true, prefix: true },
+  });
+  const effPath = effectivePath(buildPrefixMap(folders), mock!.folderId, mock!.path);
+  return { ...mock!, effectivePath: effPath };
 }
 
 export async function createMock(userId: string, raw: unknown) {
   const input = createMockSchema.parse(raw);
   const path = normalizePath(input.path);
-  await assertPathAvailable(input.method, path);
+  await assertPathAvailable(userId, input.method, path, input.folderId ?? null);
   const hash = await uniqueHash();
 
   const mock = await prisma.mock.create({
@@ -133,8 +158,9 @@ export async function updateMock(userId: string, id: string, raw: unknown) {
 
   const nextMethod = input.method ?? current!.method;
   const nextPath = input.path ? normalizePath(input.path) : current!.path;
-  if (input.method || input.path) {
-    await assertPathAvailable(nextMethod, nextPath, id);
+  const nextFolderId = input.folderId === undefined ? current!.folderId : input.folderId;
+  if (input.method || input.path || input.folderId !== undefined) {
+    await assertPathAvailable(userId, nextMethod, nextPath, nextFolderId, id);
   }
 
   try {

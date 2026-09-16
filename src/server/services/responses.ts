@@ -40,6 +40,7 @@ export const updateResponseSchema = z.object({
   rulesOperator: z.enum(["AND", "OR"]).optional(),
   isDefault: z.boolean().optional(),
   order: z.number().int().optional(),
+  testRequest: z.string().max(100000).optional().nullable(),
   rules: z.array(ruleSchema).optional(),
 });
 
@@ -102,6 +103,7 @@ export async function updateResponse(userId: string, responseId: string, raw: un
         rulesOperator: input.rulesOperator,
         isDefault: input.isDefault,
         order: input.order,
+        testRequest: input.testRequest === undefined ? undefined : input.testRequest,
       },
     });
     if (input.rules) {

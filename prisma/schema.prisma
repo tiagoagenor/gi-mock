@@ -85,16 +85,18 @@ model Folder {
   userId    String
   name      String
   parentId  String?
+  prefix    String   @default("") @db.VarChar(512)
   order     Int      @default(0)
   path      String   @default("/") @db.VarChar(768)
   depth     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent   Folder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children Folder[] @relation("FolderTree")
-  mocks    Mock[]
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent      Folder?            @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Folder[]           @relation("FolderTree")
+  mocks       Mock[]
+  middlewares FolderMiddleware[]
 
   @@unique([parentId, name])
   @@index([userId])
@@ -127,7 +129,7 @@ model Mock {
   logs           RequestLog[]
   middlewares    MockMiddleware[]
 
-  @@unique([method, path], name: "uq_method_path")
+  @@unique([folderId, method, path], name: "uq_folder_method_path")
   @@index([folderId, order])
   @@index([userId])
 }
@@ -163,6 +165,7 @@ model MockResponse {
   latencyMs     Int              @default(0)
   rulesOperator RuleOperatorMode @default(OR)
   isDefault     Boolean          @default(false)
+  testRequest   String?          @db.LongText
   order         Int              @default(0)
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
@@ -320,8 +323,9 @@ model Middleware {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mocks MockMiddleware[]
+  user    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mocks   MockMiddleware[]
+  folders FolderMiddleware[]
 
   @@index([userId])
 }
@@ -338,4 +342,19 @@ model MockMiddleware {
 
   @@unique([mockId, middlewareId])
   @@index([mockId, order])
+}
+
+// Vínculo (ordenado) entre uma pasta e os middlewares que rodam para todos os
+// mocks dentro dela (e das subpastas).
+model FolderMiddleware {
+  id           String @id @default(cuid())
+  folderId     String
+  middlewareId String
+  order        Int    @default(0)
+
+  folder     Folder     @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  middleware Middleware @relation(fields: [middlewareId], references: [id], onDelete: Cascade)
+
+  @@unique([folderId, middlewareId])
+  @@index([folderId, order])
 }
