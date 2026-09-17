@@ -333,8 +333,11 @@ export async function handleMock(req: Request): Promise<Response> {
     bodyOut = response.body ?? "";
   }
 
+  // Status "sem corpo" (204/205/304) e HEAD não podem ter body — o Response
+  // lança erro (500) se receber corpo nesses casos.
   const isHead = method === "HEAD";
-  const finalBody = isHead ? null : bodyOut;
+  const nullBodyStatus = status === 204 || status === 205 || status === 304;
+  const finalBody = isHead || nullBodyStatus ? null : bodyOut;
   const res = new Response(finalBody, { status, headers });
 
   if (!noLog)
