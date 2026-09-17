@@ -149,6 +149,7 @@ export function MocksWorkspace({ initialHash }: { initialHash?: string }) {
           <MockEditor
             key={selectedMockId}
             mockId={selectedMockId}
+            folders={folders}
             onMockChanged={reload}
             onDeleted={() => {
               setSelectedMockId(null);

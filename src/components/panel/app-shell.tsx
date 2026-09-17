@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ChangePasswordDialog } from "@/components/panel/change-password-dialog";
 import { api } from "@/lib/client/api";
 
 const NAV = [
@@ -79,6 +80,7 @@ export function AppShell({
   const nav = NAV.filter((item) => !item.adminOnly || user.role === "ADMIN");
   // Default fechado (rail) — mais espaço. Preferência persistida no navegador.
   const [collapsed, setCollapsed] = useState(true);
+  const [pwOpen, setPwOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -197,6 +199,10 @@ export function AppShell({
             <DropdownMenuContent align="start" side="right" className="w-[184px]">
               <DropdownMenuLabel className="truncate">{user.username}</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setPwOpen(true)}>
+                <KeyRound className="size-4" />
+                Trocar senha
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
                 <LogOut className="size-4" />
                 Sair
@@ -228,6 +234,8 @@ export function AppShell({
         </header>
         <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
       </div>
+
+      <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />
     </div>
   );
 }

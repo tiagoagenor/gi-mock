@@ -25,14 +25,17 @@ import { HTTP_METHODS, type HttpMethod } from "@/lib/http";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/client/api";
 import { DEFAULT_TEST_CTX } from "@/lib/client/test-ctx";
-import type { MockDetail, MockResponse, ResponseMode, MiddlewareListItem } from "@/lib/types";
+import { buildPrefixMap, effectivePath } from "@/lib/client/folder-prefix";
+import type { MockDetail, MockResponse, ResponseMode, MiddlewareListItem, Folder } from "@/lib/types";
 
 export function MockEditor({
   mockId,
+  folders,
   onMockChanged,
   onDeleted,
 }: {
   mockId: string;
+  folders: Folder[];
   onMockChanged: () => void;
   onDeleted: () => void;
 }) {
@@ -250,7 +253,8 @@ export function MockEditor({
     }
   }
 
-  const effPath = detail.effectivePath ?? detail.path;
+  // Calcula a URL efetiva ao vivo (prefixo da pasta + caminho atual), sem re-fetch.
+  const effPath = effectivePath(buildPrefixMap(folders), detail.folderId, detail.path || "/");
   const callUrl =
     typeof window !== "undefined" ? `${window.location.origin}${effPath}` : effPath;
 
