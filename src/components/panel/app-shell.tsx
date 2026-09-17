@@ -16,6 +16,7 @@ import {
   Braces,
   BookOpen,
   AlignJustify,
+  Info,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ChangePasswordDialog } from "@/components/panel/change-password-dialog";
+import { AboutDialog } from "@/components/panel/about-dialog";
 import { api } from "@/lib/client/api";
 
 const NAV = [
@@ -81,6 +83,7 @@ export function AppShell({
   // Default fechado (rail) — mais espaço. Preferência persistida no navegador.
   const [collapsed, setCollapsed] = useState(true);
   const [pwOpen, setPwOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -203,6 +206,11 @@ export function AppShell({
                 <KeyRound className="size-4" />
                 Trocar senha
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setAboutOpen(true)}>
+                <Info className="size-4" />
+                Sobre o app
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
                 <LogOut className="size-4" />
                 Sair
@@ -236,6 +244,7 @@ export function AppShell({
       </div>
 
       <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
     </div>
   );
 }
