@@ -33,15 +33,16 @@ export function MockEditor({
   folders,
   onMockChanged,
   onDeleted,
+  onDirtyChange,
 }: {
   mockId: string;
   folders: Folder[];
   onMockChanged: () => void;
   onDeleted: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [detail, setDetail] = useState<MockDetail | null>(null);
   const [selectedRid, setSelectedRid] = useState<string | null>(null);
-  const [savingMeta, setSavingMeta] = useState(false);
   const [savingResp, setSavingResp] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [availableMw, setAvailableMw] = useState<MiddlewareListItem[]>([]);
@@ -83,17 +84,7 @@ export function MockEditor({
     }
   }
 
-  if (!detail) {
-    return (
-      <div className="flex h-full items-center justify-center text-[13px] text-muted-foreground">
-        <Loader2 className="mr-2 size-4 animate-spin" /> Carregando…
-      </div>
-    );
-  }
-
-  const selected = detail.responses.find((r) => r.id === selectedRid) ?? detail.responses[0];
-
-  // Detecção de alterações não salvas (dirty).
+  // Detecção de alterações não salvas (dirty) — calculada antes do guard p/ o hook abaixo.
   const metaSig = (d: MockDetail) =>
     JSON.stringify([d.method, d.path, d.name ?? "", d.responseMode, d.isEnabled, d.forcedResponseId ?? ""]);
   const respSig = (r: MockResponse) =>
@@ -110,15 +101,29 @@ export function MockEditor({
       r.rules,
       r.testRequest ?? "",
     ]);
-  const metaDirty = pristine ? metaSig(detail) !== metaSig(pristine) : false;
+  const metaDirty = detail && pristine ? metaSig(detail) !== metaSig(pristine) : false;
   const dirtyRids = new Set<string>();
-  if (pristine) {
+  if (detail && pristine) {
     for (const r of detail.responses) {
       const p = pristine.responses.find((x) => x.id === r.id);
       if (!p || respSig(r) !== respSig(p)) dirtyRids.add(r.id);
     }
   }
   const anyDirty = metaDirty || dirtyRids.size > 0;
+
+  useEffect(() => {
+    onDirtyChange?.(anyDirty);
+  }, [anyDirty, onDirtyChange]);
+
+  if (!detail) {
+    return (
+      <div className="flex h-full items-center justify-center text-[13px] text-muted-foreground">
+        <Loader2 className="mr-2 size-4 animate-spin" /> Carregando…
+      </div>
+    );
+  }
+
+  const selected = detail.responses.find((r) => r.id === selectedRid) ?? detail.responses[0];
 
   function patchMeta(patch: Partial<MockDetail>) {
     setDetail((d) => (d ? { ...d, ...patch } : d));
@@ -156,50 +161,6 @@ export function MockEditor({
     };
   }
 
-  async function saveMeta() {
-    setSavingMeta(true);
-    try {
-      await api.patch(`/painel/api/mocks/${mockId}`, metaPayload());
-      toast.success("Mock salvo");
-      onMockChanged();
-      await load();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Erro ao salvar");
-    } finally {
-      setSavingMeta(false);
-    }
-  }
-
-  async function saveResponse() {
-    if (!selected) return;
-    setSavingResp(true);
-    try {
-      await api.patch(`/painel/api/responses/${selected.id}`, responsePayload(selected));
-      toast.success("Resposta salva");
-      onMockChanged();
-      await load();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Erro ao salvar resposta");
-    } finally {
-      setSavingResp(false);
-    }
-  }
-
-  // Salva só o request de teste da resposta selecionada.
-  async function saveTestRequest() {
-    if (!selected) return;
-    setSavingResp(true);
-    try {
-      await api.patch(`/painel/api/responses/${selected.id}`, { testRequest: selected.testRequest });
-      toast.success("Request de teste salvo");
-      onMockChanged();
-      await load();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Erro ao salvar");
-    } finally {
-      setSavingResp(false);
-    }
-  }
 
   // Salva tudo: dados do mock + todas as respostas alteradas (incl. request de teste).
   async function saveAll() {
@@ -299,11 +260,12 @@ export function MockEditor({
           )}
           <Button
             size="sm"
-            onClick={saveMeta}
-            disabled={savingMeta}
-            className={cn(metaDirty && "ring-2 ring-warning/50")}
+            onClick={saveAll}
+            disabled={savingResp || !anyDirty}
+            className={cn(anyDirty && "ring-2 ring-warning/50")}
+            title="Salva o mock e todas as respostas"
           >
-            {savingMeta ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            {savingResp ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             Salvar
           </Button>
           <Button variant="ghost" size="icon-sm" onClick={() => setConfirmDelete(true)}>
@@ -484,14 +446,9 @@ export function MockEditor({
               response={selected}
               mockId={mockId}
               onChange={(patch) => patchResponse(selected.id, patch)}
-              onSave={saveResponse}
               onDelete={deleteResponse}
-              onSaveTest={saveTestRequest}
-              onSaveAll={saveAll}
               method={detail.method}
               canDelete={detail.responses.length > 1}
-              saving={savingResp}
-              dirty={dirtyRids.has(selected.id)}
             />
           )}
         </div>

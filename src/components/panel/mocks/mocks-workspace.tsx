@@ -27,6 +27,18 @@ export function MocksWorkspace({ initialHash }: { initialHash?: string }) {
   const [editFolder, setEditFolder] = useState<Folder | null>(null);
   const [availableMw, setAvailableMw] = useState<MiddlewareListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editorDirty, setEditorDirty] = useState(false);
+  const [pendingSelect, setPendingSelect] = useState<string | null>(null);
+
+  // Ao trocar de mock com alterações não salvas, confirma antes de descartar.
+  function handleSelectMock(id: string) {
+    if (id === selectedMockId) return;
+    if (editorDirty) {
+      setPendingSelect(id);
+      return;
+    }
+    setSelectedMockId(id);
+  }
 
   const reload = useCallback(async () => {
     const [f, m] = await Promise.all([
@@ -126,7 +138,7 @@ export function MocksWorkspace({ initialHash }: { initialHash?: string }) {
               folders={folders}
               mocks={mocks}
               selectedMockId={selectedMockId}
-              onSelectMock={setSelectedMockId}
+              onSelectMock={handleSelectMock}
               onMoveMock={moveMock}
               onDeleteFolder={(id) => setDeleteFolderId(id)}
               onEditFolder={(folder) => setEditFolder(folder)}
@@ -151,7 +163,9 @@ export function MocksWorkspace({ initialHash }: { initialHash?: string }) {
             mockId={selectedMockId}
             folders={folders}
             onMockChanged={reload}
+            onDirtyChange={setEditorDirty}
             onDeleted={() => {
+              setEditorDirty(false);
               setSelectedMockId(null);
               reload();
             }}
@@ -206,6 +220,21 @@ export function MocksWorkspace({ initialHash }: { initialHash?: string }) {
         destructive
         onConfirm={async () => {
           if (deleteFolderId) await deleteFolder(deleteFolderId);
+        }}
+      />
+      <AlertDialogLike
+        open={pendingSelect !== null}
+        onOpenChange={(o) => !o && setPendingSelect(null)}
+        title="Descartar alterações não salvas?"
+        description="Você tem alterações não salvas neste mock. Se trocar de mock agora, elas serão perdidas."
+        confirmLabel="Descartar e trocar"
+        destructive
+        onConfirm={() => {
+          if (pendingSelect) {
+            setSelectedMockId(pendingSelect);
+            setEditorDirty(false);
+            setPendingSelect(null);
+          }
         }}
       />
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Play, Trash2, Save, Loader2, FileJson, Code2, ChevronDown, Plus } from "lucide-react";
+import { Play, Trash2, Loader2, FileJson, Code2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,12 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { DEFAULT_TEST_CTX } from "@/lib/client/test-ctx";
 import { StatusSelect } from "@/components/panel/status-select";
@@ -83,27 +77,17 @@ function parseCases(raw: string | null): TestCase[] {
 export function ResponseEditor({
   response,
   onChange,
-  onSave,
   onDelete,
-  onSaveTest,
-  onSaveAll,
   canDelete,
-  saving,
   mockId,
   method,
-  dirty = false,
 }: {
   response: MockResponse;
   onChange: (patch: Partial<MockResponse>) => void;
-  onSave: () => void;
   onDelete: () => void;
-  onSaveTest: () => void;
-  onSaveAll: () => void;
   canDelete: boolean;
-  saving: boolean;
   mockId: string;
   method: string;
-  dirty?: boolean;
 }) {
   const [cases, setCases] = useState<TestCase[]>(() => parseCases(response.testRequest));
   const [activeCaseId, setActiveCaseId] = useState<string>("");
@@ -217,30 +201,6 @@ export function ResponseEditor({
             <Trash2 className="size-4" />
             Excluir
           </Button>
-          <div className="flex items-center">
-            <Button size="sm" onClick={onSave} disabled={saving} className="rounded-r-none">
-              {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-              Salvar
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="sm"
-                  disabled={saving}
-                  className="w-6 rounded-l-none border-l border-primary-foreground/25 px-0"
-                  aria-label="Mais opções de salvar"
-                >
-                  <ChevronDown className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onSaveAll}>
-                  <Save className="size-4" />
-                  Salvar tudo
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
         </div>
       </div>
 
@@ -314,17 +274,6 @@ export function ResponseEditor({
                     <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                       Requests de teste (JSON)
                     </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7"
-                      onClick={onSaveTest}
-                      disabled={saving}
-                      title="Salvar os requests de teste"
-                    >
-                      {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-                      Salvar
-                    </Button>
                   </div>
 
                   {/* Seletor de casos de teste + adicionar/remover */}
