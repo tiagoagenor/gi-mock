@@ -22,6 +22,7 @@ import { StatusBadge } from "@/components/panel/status-badge";
 import { MonacoEditor } from "@/components/panel/monaco-editor";
 import { RulesEditor } from "@/components/panel/mocks/rules-editor";
 import { HeadersEditor } from "@/components/panel/mocks/headers-editor";
+import { AlertDialogLike } from "@/components/panel/confirm-dialog";
 import { api } from "@/lib/client/api";
 import type { MockResponse } from "@/lib/types";
 import type { SandboxResult } from "@/server/sandbox/runner";
@@ -94,6 +95,7 @@ export function ResponseEditor({
   const activeCase = cases.find((c) => c.id === activeCaseId) ?? cases[0];
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<SandboxResult | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   function commitCases(next: TestCase[]) {
     setCases(next);
@@ -197,7 +199,12 @@ export function ResponseEditor({
           </Label>
         </div>
         <div className="ml-auto flex items-center gap-1.5">
-          <Button variant="ghost" size="sm" onClick={onDelete} disabled={!canDelete}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setConfirmDelete(true)}
+            disabled={!canDelete}
+          >
             <Trash2 className="size-4" />
             Excluir
           </Button>
@@ -348,6 +355,16 @@ export function ResponseEditor({
           />
         </TabsContent>
       </Tabs>
+
+      <AlertDialogLike
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Excluir resposta?"
+        description={`A resposta "${response.label || "sem rótulo"}" e suas regras serão removidas.`}
+        confirmLabel="Excluir"
+        destructive
+        onConfirm={onDelete}
+      />
     </div>
   );
 }
