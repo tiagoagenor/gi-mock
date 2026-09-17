@@ -245,7 +245,7 @@ export function ResponseEditor({
       </div>
 
       {/* Modo do corpo */}
-      <div className="flex items-center gap-1 border-b border-border px-4 py-2">
+      <div className="flex items-center gap-2.5 border-b border-border px-4 py-2">
         <BodyModeToggle
           value={response.bodyMode}
           onChange={(m) => {
@@ -257,6 +257,10 @@ export function ResponseEditor({
             }
           }}
         />
+        <span className="text-[11px] text-muted-foreground">
+          A opção <b className="text-foreground">em uso</b> é a que responde este endpoint (a outra é
+          ignorada).
+        </span>
       </div>
 
       <Tabs defaultValue="content" className="flex min-h-0 flex-1 flex-col">
@@ -406,6 +410,11 @@ function BodyModeToggle({
   value: "STATIC" | "SCRIPT";
   onChange: (m: "STATIC" | "SCRIPT") => void;
 }) {
+  const usoBadge = (
+    <span className="rounded bg-primary/15 px-1 text-[10px] font-semibold uppercase text-primary">
+      em uso
+    </span>
+  );
   return (
     <div className="inline-flex rounded-md border border-border p-0.5">
       <button
@@ -417,6 +426,7 @@ function BodyModeToggle({
       >
         <FileJson className="size-3.5" />
         Corpo estático
+        {value === "STATIC" && usoBadge}
       </button>
       <button
         onClick={() => onChange("SCRIPT")}
@@ -427,6 +437,7 @@ function BodyModeToggle({
       >
         <Code2 className="size-3.5" />
         Código JS (.mjs)
+        {value === "SCRIPT" && usoBadge}
       </button>
     </div>
   );
