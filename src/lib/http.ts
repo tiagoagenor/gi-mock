@@ -46,16 +46,6 @@ export interface StatusGroup {
 
 export const STATUS_GROUPS: StatusGroup[] = [
   {
-    label: "1xx — Informativo",
-    range: "1xx",
-    codes: [
-      { code: 100, text: "Continue" },
-      { code: 101, text: "Switching Protocols" },
-      { code: 102, text: "Processing" },
-      { code: 103, text: "Early Hints" },
-    ],
-  },
-  {
     label: "2xx — Sucesso",
     range: "2xx",
     codes: [

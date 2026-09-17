@@ -333,12 +333,25 @@ export async function handleMock(req: Request): Promise<Response> {
     bodyOut = response.body ?? "";
   }
 
+  // Blindagem: o Response do Node só aceita status 200–599. Status fora disso
+  // (ex.: 1xx) lançariam erro (500). Clampa para 200 e preserva a intenção num header.
+  let finalStatus = status;
+  if (finalStatus < 200 || finalStatus > 599) {
+    headers["X-Mock-Intended-Status"] = String(status);
+    finalStatus = 200;
+  }
   // Status "sem corpo" (204/205/304) e HEAD não podem ter body — o Response
-  // lança erro (500) se receber corpo nesses casos.
+  // lança erro se receber corpo nesses casos.
   const isHead = method === "HEAD";
-  const nullBodyStatus = status === 204 || status === 205 || status === 304;
+  const nullBodyStatus = finalStatus === 204 || finalStatus === 205 || finalStatus === 304;
   const finalBody = isHead || nullBodyStatus ? null : bodyOut;
-  const res = new Response(finalBody, { status, headers });
+  let res: Response;
+  try {
+    res = new Response(finalBody, { status: finalStatus, headers });
+  } catch {
+    res = new Response(null, { status: 200, headers });
+  }
+  status = finalStatus;
 
   if (!noLog)
     logRequest({
